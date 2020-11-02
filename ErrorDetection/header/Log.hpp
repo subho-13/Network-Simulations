@@ -1,11 +1,14 @@
+#pragma once
 #include "Constant.hpp"
 
 #include "iostream"
 #include "iomanip"
+#include "cstdint"
 
 using namespace std;
 
 class Log {
+    static const cnt_t MAXERROR = 256;
     cnt_t logCnt;
     cnt_t numPackets;
 
@@ -13,6 +16,8 @@ class Log {
     cnt_t lrcError;
     cnt_t cksumError;
     cnt_t crcError;
+
+    byte_t skip;
 public:
     static const byte_t NONE_ER = 0x0;
     static const byte_t VRC_ER = 0x1;
@@ -27,45 +32,86 @@ public:
         crcError = 0;
         lrcError = 0;
         cksumError = 0;
+        skip = 0;
+    }
+
+    cnt_t getNumPackets() {
+        return numPackets;
     }
 
     void write(byte_t untaintedData[], byte_t taintedData[], len_t len, byte_t errorType) {
         numPackets++;
         if(errorType == NONE_ER) {
             return;
+        } else if (skip > 0 && ((errorType|skip) == skip)) {
+            if(errorType&VRC_ER) {
+                vrcError++;
+            }
+
+            if(errorType&LRC_ER) {
+                lrcError++;
+            }
+
+            if(errorType&CKSUM_ER) {
+                cksumError++;
+            }
+
+            if(errorType&CRC_ER) {
+                crcError++;
+            }
+            
+            return;
         }
         
         logCnt++;
-        cout << "-------------" << logCnt << "-------------\n";
+        printf("\n\n-------------------%d--------------------\n\n", logCnt);
         
         if(VRC_ER&errorType) {
             vrcError++;
-            cout << "VRC failed - " << vrcError << " out of " << numPackets << "\n";
+            printf("VRC Failed - %d out of %d\n", vrcError, numPackets);
         }
 
-        if(VRC_ER&errorType) {
+        if(vrcError == MAXERROR) {
+            skip |= VRC_ER;
+        }
+
+        if(LRC_ER&errorType) {
             lrcError++;
-            cout << "LRC failed - " << lrcError << " out of " << numPackets << "\n";
+            printf("LRC Failed - %d out of %d\n", lrcError, numPackets);
+        }
+
+        if(lrcError == MAXERROR) {
+            skip |= LRC_ER;
         }
 
         if(CKSUM_ER&errorType) {
             cksumError++;
-            cout << "CkSum failed - " << cksumError << " out of " << numPackets << "\n";
+            printf("CheckSum Failed - %d out of %d\n", cksumError, numPackets);
+        }
+
+        if(cksumError == MAXERROR) {
+            skip |= CKSUM_ER;
         }
 
         if(CRC_ER&errorType) {
             crcError++;
-            cout << "CRC failed - " << crcError << " out of " << numPackets << "\n";
+            printf("CRC Failed - %d out of %d\n", crcError, numPackets);
+        }
+
+        if(crcError == MAXERROR) {
+            skip |= CRC_ER;
         }
 
         for(indx_t i = 0; i < len; i++) {
-            cout << setw(2) << hex << untaintedData[i];
+            printf("%02X", untaintedData[i]);
         }
+
+        printf("\n");
 
         for(indx_t i = 0; i < len; i++) {
-            cout << setw(2) << hex << taintedData[i];
+            printf("%02X", taintedData[i]);
         }
-
+        printf("\n");
         byte_t tmp;
 
         for(indx_t i = 0; i < len; i++) {
@@ -73,15 +119,29 @@ public:
 
             if(tmp) {
                 if(tmp>>4) {
-                    cout << "^-";
+                    printf("^_");
                 } else {
-                    cout << "-^";
+                    printf("_^");
                 }
             } else {
-                cout << "--";
+                printf("__");
             }
         }
 
-        cout << "\n" << "-------------" << logCnt << "-------------\n";
+        printf("\n\n-------------------%d--------------------\n\n", logCnt);
+    }
+
+    void endStats() {
+        double vrcFailure = double(vrcError)/double(numPackets) * 100;
+        double lrcFailure = double(lrcError)/double(numPackets) * 100;
+        double cksumFailure = double(cksumError)/double(numPackets) * 100;
+        double crcFailure = double(crcError)/double(numPackets) * 100;
+
+        printf("\n\n######### %d ########\n\n", numPackets);
+        printf("VRC Failed - %d out of %d, %lf%\n", vrcError, numPackets, vrcFailure);
+        printf("LRC Failed - %d out of %d, %lf%\n", lrcError, numPackets, lrcFailure);
+        printf("CheckSum Failed - %d out of %d, %lf%\n", cksumError, numPackets, cksumFailure);
+        printf("CRC Failed - %d out of %d, %lf%\n", crcError, numPackets, crcFailure);
+        printf("\n\n######### %d ########\n\n", numPackets);
     }
 };

@@ -1,3 +1,4 @@
+#pragma once
 #include "Constant.hpp"
 #include "VRC.hpp"
 #include "LRC.hpp"
@@ -6,6 +7,7 @@
 #include "Error.hpp"
 #include "Taint.hpp"
 #include "Log.hpp"
+#include "ctime"
 
 using namespace std;
 
@@ -28,35 +30,41 @@ private:
     static const len_t VRC_LEN = VRC_INDX + sizeof(vrc_t);
 
     byte_t frame[PACKET_LEN];
-    static minstd_rand0 generator;
+    minstd_rand0 generator;
+
+    VRC VRCInstance;
+    CRC CRCInstance;
+    CkSum CkSumInstance;
+    LRC LRCInstance;
+    Taint TaintInstance;
 public:
-    void init() {
+    Packet() {        
         for(indx_t i = 0; i < PACKET_LEN; i++) {
             frame[i] = i;
         }
-        minstd_rand0 gnrtr(0);
+        minstd_rand0 gnrtr(time(NULL));
         generator = gnrtr;
     }
 
     void packFrame() {
-        vrc_t vrc = VRC::calc(frame, VRC_INDX);
-        VRC::insert(frame+VRC_INDX, vrc);
+        vrc_t vrc = VRCInstance.calc(frame, VRC_INDX);
+        VRCInstance.insert(frame+VRC_INDX, vrc);
 
-        lrc_t lrc = LRC::calc(frame, LRC_INDX);
-        LRC::insert(frame+LRC_INDX, lrc);
+        lrc_t lrc = LRCInstance.calc(frame, LRC_INDX);
+        LRCInstance.insert(frame+LRC_INDX, lrc);
 
-        cksum_t cksum = CkSum::calc(frame, CKSUM_INDX);
-        CkSum::insert(frame+CKSUM_INDX, cksum);
+        cksum_t cksum = CkSumInstance.calc(frame, CKSUM_INDX);
+        CkSumInstance.insert(frame+CKSUM_INDX, cksum);
 
-        crc_t crc = CRC::calc(frame, CRC_INDX);
-        CRC::insert(frame+CRC_INDX, crc);
+        crc_t crc = CRCInstance.calc(frame, CRC_INDX);
+        CRCInstance.insert(frame+CRC_INDX, crc);
     }
 
     void taintFrame() {
-        if (generator()%10 == 0) {
-            Taint::taintBurst(frame, PACKET_LEN);
+        if (generator()%7 == 0) {
+            TaintInstance.taintBurst(frame, PACKET_LEN);
         } else {
-            Taint::taintBit(frame, PACKET_LEN);
+            TaintInstance.taintBit(frame, PACKET_LEN);
         }
     }
 
@@ -93,23 +101,31 @@ public:
     byte_t checkError() {
         byte_t tmp = 0;
 
-        if(!VRC::isOk(frame, VRC_LEN)) {
+        if(!VRCInstance.isOk(frame, VRC_LEN)) {
             tmp |= VRC_CORRUPT;
         }
 
-        if(!LRC::isOk(frame, LRC_LEN)) {
+        if(!LRCInstance.isOk(frame, LRC_LEN)) {
             tmp |= LRC_CORRUPT;
         }
 
-        if(!CkSum::isOk(frame, CKSUM_LEN)) {
+        if(!CkSumInstance.isOk(frame, CKSUM_LEN)) {
             tmp |= CKSUM_CORRUPT;
         }
 
-        if(!CRC::isOk(frame, CRC_LEN)) {
+        if(!CRCInstance.isOk(frame, CRC_LEN)) {
             tmp |= CRC_CORRUPT;
         }
 
         return tmp;
+    }
+
+    void printFrame() {
+        printf("\n\n\n");
+        for(indx_t i = 0; i < PACKET_LEN; i++) {
+            printf("%02X", frame[i]);
+        }
+        printf("\n");
     }
 
     friend byte_t packetCompare(Packet& p1, Packet& p2);
@@ -122,7 +138,7 @@ byte_t packetCompare(Packet& untainted, Packet& tainted) {
 
     bool isSame = true;
     byte_t checkErrorVal = tainted.checkError();
-    byte_t logErrorVal = 0;
+    byte_t logErrorVal = Log::NONE_ER;
     
     for(indx_t i = 0; i < Packet::VRC_LEN; i++) {
         if(untainted.frame[i] != tainted.frame[i]) {

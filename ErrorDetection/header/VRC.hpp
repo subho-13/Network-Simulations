@@ -1,8 +1,9 @@
+#pragma once
 #include "Constant.hpp"
 
 class VRC {
 public:
-    static vrc_t calc(byte_t data[], len_t len) {
+     vrc_t calc(byte_t data[], len_t len) {
         vrc_t vrc = 0;
 
         for(indx_t i = 0; i < len; i++) {
@@ -18,11 +19,11 @@ public:
         return vrc;
     }
 
-    static void insert(byte_t* data, vrc_t vrc) {
+     void insert(byte_t* data, vrc_t vrc) {
         *data = vrc;
     }
 
-    static bool isOk(byte_t data[], len_t len) {
+     bool isOk(byte_t data[], len_t len) {
         if (calc(data, len) == 0) {
             return true;
         }

@@ -1,3 +1,5 @@
+#pragma once
+
 #include "Constant.hpp"
 #include "Error.hpp"
 
@@ -45,7 +47,7 @@ class Channel {
         error.className("Channel");
         error.funcName("initBuffer");
 
-        int fd = shm_open(name.c_str(), O_CREAT|O_EXCL, S_IRUSR|S_IWUSR);
+        int fd = shm_open(name.c_str(), O_CREAT|O_RDWR, 0666);
 
         if(fd == -1) {
             error.problemIs("shm_open failed");
@@ -118,15 +120,25 @@ class Channel {
             error.problemIs("shm_unlink failed");
             throw error;
         }
+
+        if(munmap(buffer, CHAN_SIZE) == -1) {
+            error.problemIs("munmap failed");
+            throw error;
+        }
     }
 
-    void closeSem(string name) {
+    void closeSem(sem_t* sem, string name) {
         Error error;
         error.className("Channel");
         error.funcName("closeSem");
 
         if (sem_unlink(name.c_str()) == -1) {
             error.problemIs("sem_unlink failed");
+            throw error;
+        }
+
+        if(sem_close(sem) == -1) {
+            error.problemIs("sem_close failed");
             throw error;
         }
     }
@@ -158,8 +170,8 @@ public:
 
     void close() {
         closeBuffer(bufferName);
-        closeSem(semBufferEmptyName);
-        closeSem(semBufferFullName);
+        closeSem(semBufferEmpty, semBufferEmptyName);
+        closeSem(semBufferFull, semBufferFullName);
     }
 
     void write(byte_t data[], len_t len) {
@@ -176,7 +188,7 @@ public:
         for (indx_t i = 0; i < len; i++) {
             sem_wait(semBufferEmpty);
             data[i] = buffer[rear+i];
-            sem_post(semBufferEmpty);
+            sem_post(semBufferFull);
         }
 
         rear = (rear + len)%CHAN_SIZE;
