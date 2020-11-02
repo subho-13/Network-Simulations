@@ -188,7 +188,7 @@ public:
         for (indx_t i = 0; i < len; i++) {
             sem_wait(semBufferEmpty);
             data[i] = buffer[rear+i];
-            sem_post(semBufferFull);
+            sem_post(semBufferEmpty);
         }
 
         rear = (rear + len)%CHAN_SIZE;
