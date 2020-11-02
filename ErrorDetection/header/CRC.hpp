@@ -2,7 +2,7 @@
 #include "Constant.hpp"
 
 class CRC {
-    static const len_t crcTableLen = 256;
+    static const len_t crcTableLen = 26;
     static const crc_t poly = 0x8005;
     crc_t crcTable[crcTableLen];
 
