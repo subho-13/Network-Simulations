@@ -85,7 +85,6 @@ inline void RcvPktQ::getAckPkt(Ptr<Pkt> &pkt) {
 
 inline void RcvPktQ::stopOp() {
     stop = true;
-    receiver->stopOp();
     DataPktQ->stopOp();
     AckPktQ->stopOp();
     stopped.wait();

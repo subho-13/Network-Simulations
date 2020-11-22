@@ -38,7 +38,6 @@ public:
     SndDataPktQ(Ptr<SndPktQ>& sPQ, Ptr<RcvPktQ>& rPQ);
     void store(Ptr<Pkt>& pkt);
     void stopOp();
-    ~SndDataPktQ();
 };
 
 inline SndDataPktQ::SndDataPktQ(Ptr<SndPktQ>& sPQ, Ptr<RcvPktQ>& rPQ):
@@ -118,12 +117,6 @@ inline void SndDataPktQ::rcvAck() {
 inline void SndDataPktQ::stopOp() {
     stop = true;
     qEmpty.signal();
-    sndPktQ->stopOp();
-    rcvPktQ->stopOp();
     sStopped.wait();
     rStopped.wait();
-}
-
-inline SndDataPktQ::~SndDataPktQ() {
-    stopOp();
 }

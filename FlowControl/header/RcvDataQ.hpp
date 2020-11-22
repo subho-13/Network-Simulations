@@ -29,7 +29,6 @@ public:
     RcvDataQ(Ptr<RcvDataPktQ>& rDPQ);
     void collect(byte_t data[], len_t len);
     void stopOp();
-    ~RcvDataQ();
 };
 
 inline RcvDataQ::RcvDataQ(Ptr<RcvDataPktQ>& rDPQ):
@@ -77,11 +76,6 @@ inline void RcvDataQ::store() {
 
 inline void RcvDataQ::stopOp() {
     stop = true;
-    rcvDataPktQ->stopOp();
     qFull.signal();
     stopped.wait();
-}
-
-inline RcvDataQ::~RcvDataQ() {
-    stopOp();
 }

@@ -62,19 +62,19 @@ public:
 };
 
 template<typename T>
-Ptr<T>::Ptr() {
+inline Ptr<T>::Ptr() {
     rf = NULL;
     obj = NULL;
 }
 
 template<typename T>
-Ptr<T>::Ptr(T* obj) {
-    obj = obj;
+inline Ptr<T>::Ptr(T* o) {
+    obj = o;
     rf = new RefCnt();
 }
 
 template<typename T>
-Ptr<T>::Ptr(Ptr<T>& p) {
+inline Ptr<T>::Ptr(Ptr<T>& p) {
     obj = p.obj;
     rf = p.rf;
     if(rf != NULL) {
@@ -83,7 +83,7 @@ Ptr<T>::Ptr(Ptr<T>& p) {
 }
 
 template<typename T>
-Ptr<T>& Ptr<T>::operator = (Ptr<T>& p) {
+inline Ptr<T>& Ptr<T>::operator = (Ptr<T>& p) {
     if (this != &p) {
         if(rf != NULL) {
             if(rf->get() == 1) {
@@ -106,17 +106,17 @@ Ptr<T>& Ptr<T>::operator = (Ptr<T>& p) {
 }
 
 template<typename T>
-T* Ptr<T>::operator -> () {
+inline T* Ptr<T>::operator -> () {
     return obj;
 }
 
 template<typename T>
-T& Ptr<T>::operator * () {
+inline T& Ptr<T>::operator * () {
     return *obj;
 }
 
 template <typename T>
-Ptr<T>::~Ptr() {
+inline Ptr<T>::~Ptr() {
     if(rf != NULL) {
         if(rf->get() == 1) {
             delete obj;

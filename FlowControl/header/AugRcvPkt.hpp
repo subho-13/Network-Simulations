@@ -15,7 +15,6 @@ public:
     void store(Ptr<Pkt>& p);
     void collect(Ptr<Pkt>& p);
     void stopOp();
-    ~AugRcvPkt();
 };
 
 inline AugRcvPkt::AugRcvPkt() : collected(1), newPkt(0) {}
@@ -35,10 +34,6 @@ inline void AugRcvPkt::collect(Ptr<Pkt>& p) {
 inline void AugRcvPkt::stopOp() {
     newPkt.signal();
     collected.signal();
-}
-
-inline AugRcvPkt::~AugRcvPkt() {
-    stopOp();
 }
 
 /*

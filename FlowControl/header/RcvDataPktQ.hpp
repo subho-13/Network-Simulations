@@ -33,8 +33,7 @@ class RcvDataPktQ {
 public:
     RcvDataPktQ(Ptr<SndPktQ>& sPQ, Ptr<RcvPktQ>& rPQ, Ptr<CRC>& c);
     void collect(Ptr<Pkt>& pkt);
-    void stopOp();
-    ~RcvDataPktQ();   
+    void stopOp(); 
 };
 
 inline RcvDataPktQ::RcvDataPktQ(Ptr<SndPktQ>& sPQ, Ptr<RcvPktQ>& rPQ, Ptr<CRC>& c) :
@@ -107,11 +106,5 @@ inline void RcvDataPktQ::store() {
 inline void RcvDataPktQ::stopOp() {
     stop = true;
     queue[minSeqNum].stopOp();
-    sndPktQ->stopOp();
-    rcvPktQ->stopOp();
     stopped.wait();
-}
-
-inline RcvDataPktQ::~RcvDataPktQ() {
-    stopOp();
 }

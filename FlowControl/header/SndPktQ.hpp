@@ -15,6 +15,7 @@ using namespace std;
 class SndPktQ {
     Ptr<PktQ> pktQ;
     Ptr<Sender> sender;
+
     void send();
     atomic<bool> stop;
     Semaphore stopped;
@@ -23,7 +24,6 @@ public:
     SndPktQ(Ptr<Sender>& sndr);
     void store(Ptr<Pkt>& pkt);
     void stopOp();
-    ~SndPktQ();
 };
 
 inline void SndPktQ::send() {
@@ -55,8 +55,4 @@ inline void SndPktQ::stopOp() {
     stop = true;
     pktQ->stopOp();
     stopped.wait();
-}
-
-inline SndPktQ::~SndPktQ() {
-    stopOp();
 }

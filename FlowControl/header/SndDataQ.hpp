@@ -18,6 +18,7 @@ class SndDataQ{
     byte_t queue[QUEUE_LEN];
     indx_t rear;
     indx_t front;
+
     atomic<len_t>  qLen;
     Semaphore qEmpty;
     Semaphore qFull;
@@ -37,7 +38,6 @@ public:
     SndDataQ(Ptr<SndDataPktQ>& sDPQ, Ptr<CRC>& c, addr_t src,addr_t dst);
     void store(byte_t data[], len_t len);
     void stopOp();
-    ~SndDataQ();
 };
 
 inline SndDataQ::SndDataQ(Ptr<SndDataPktQ>& sDPQ, Ptr<CRC>& c, addr_t src,addr_t dst):
@@ -121,10 +121,5 @@ inline void SndDataQ::stopOp() {
     stop = true;
     qEmpty.signal();
     qFull.signal();
-    sndDataPktQ->stopOp();
     stopped.wait();
-}
-
-inline SndDataQ::~SndDataQ() {
-    stopOp();
 }

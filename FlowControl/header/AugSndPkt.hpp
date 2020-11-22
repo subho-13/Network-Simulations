@@ -24,7 +24,6 @@ public:
     void setAck();
     bool send(Ptr<SndPktQ>& sndPktQ);
     void stopOp();
-    ~AugSndPkt();
 };
 
 inline AugSndPkt::AugSndPkt():
@@ -71,10 +70,6 @@ inline bool AugSndPkt::send(Ptr<SndPktQ> &sndPktQ) {
 inline void AugSndPkt::stopOp() {
     oldPkt.signal();
     mutex.signal();
-}
-
-inline AugSndPkt::~AugSndPkt() {
-    stopOp();
 }
 
 

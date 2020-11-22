@@ -11,7 +11,6 @@ class Receiver {
 public:
     Receiver(Ptr<UsrChan>& chn);
     void receive(Ptr<Pkt>& pkt);
-    void stopOp();
 };
 
 inline Receiver::Receiver(Ptr<UsrChan>& chn) : chan(chn) {
@@ -21,8 +20,4 @@ inline Receiver::Receiver(Ptr<UsrChan>& chn) : chan(chn) {
 inline void Receiver::receive(Ptr<Pkt>& pkt) {
     chan->read(pktBuf, PACKET_LEN);
     pkt->read(pktBuf);
-}
-
-inline void Receiver::stopOp() {
-    chan->remReader();
 }

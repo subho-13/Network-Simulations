@@ -19,7 +19,6 @@ public:
     void push(Ptr<Pkt>& pkt);
     void pop(Ptr<Pkt>& pkt);
     void stopOp();
-    ~PktQ();
 };
 
 inline PktQ::PktQ() :
@@ -55,8 +54,4 @@ inline void PktQ::stopOp() {
     mtxPop.signal();
     qFull.signal();
     mtxPush.signal();
-}
-
-inline PktQ::~PktQ() {
-    stopOp();
 }
