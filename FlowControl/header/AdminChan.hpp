@@ -5,6 +5,9 @@
 #include "unistd.h"
 #include "fcntl.h"
 
+#include <iostream>
+using namespace std;
+
 #include "Constant.hpp"
 #include "Error.hpp"
 #include <cstdint>
@@ -13,9 +16,7 @@
 class AdminChan {
 private:
     static const len_t CHAN_LEN = PACKET_LEN+2*sizeof(indx_t);
-    byte_t* shm;
-    indx_t* totalReader;
-    indx_t* currReader;
+    byte_t* mmapSpace;
 
     sem_t* reader;
     sem_t* writer;
@@ -47,15 +48,11 @@ inline AdminChan::AdminChan() {
         throw error;
     }
 
-    byte_t* mmapSpace = (byte_t *)mmap(NULL, CHAN_LEN, PROT_READ|PROT_WRITE, MAP_SHARED, fd, 0);
+    mmapSpace = (byte_t *)mmap(NULL, CHAN_LEN, PROT_READ|PROT_WRITE, MAP_SHARED, fd, 0);
     if(mmapSpace == MAP_FAILED) {
         error.problem = "mmap failed";
         throw error;
     }
-
-    totalReader = (indx_t *)mmapSpace;
-    currReader = (indx_t *)mmapSpace + sizeof(indx_t);
-    shm = mmapSpace + 2*sizeof(indx_t);
 
     reader = sem_open(MUTEX_READER, O_CREAT|O_EXCL, S_IWUSR|S_IRUSR, 1);
     if(reader == SEM_FAILED) {
@@ -95,6 +92,7 @@ inline AdminChan::AdminChan() {
 }
 
 inline AdminChan::~AdminChan() {
+    munmap(mmapSpace, CHAN_LEN);
     close(fd);
     shm_unlink(CHAN_NAME);
     sem_close(reader);
