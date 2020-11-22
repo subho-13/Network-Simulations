@@ -48,7 +48,7 @@ public:
     }
 
      void taintBit(byte_t data[], len_t len) {
-        indx_t i = generator()%len;
+        indx_t i = generator();
         indx_t j = generator()%bitTaintTableLen;
 
         data[i] ^= bitTaintTable[j];
