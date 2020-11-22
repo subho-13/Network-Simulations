@@ -1,0 +1,229 @@
+Algo for SenderDataPacketQueue
+
+class SenderDataPacketQueue {
+    AugDataPkt queue[N];
+    bool toSend
+    sem_t mutex;
+    sem_t mutex2;
+    sem_t noPkt;
+
+    Only 1 thread of SenderDataQueue send will
+    invoke insert
+
+    store(Packet) {
+        queue[next].insert(Packet)
+        next = (next + 1)%N
+
+        mutex.lock()
+        if toSend == false: noPkt.signal()
+        toSend = true
+        mutex.unlock()
+    }
+
+    send() {
+        for (true) {
+            mutex.lock()
+            if toSend == false: noPkt.wait()
+            toSend = false
+            mutex.unlock()
+
+            sendAny = false
+            for i = 0; i < N; i++ {
+
+                queue[i].send(SenderPktQueue) will return false if
+                the underlying pkt is sent and ACKed
+                Else it will transmit and sendAny = true
+                sendAny |= queue[i].send(SenderPktQueue)
+            }
+
+            mutex.lock()
+                toSend = toSend|sendAny
+            mutex.unlock()
+        }
+    }
+
+    receive(Packet) {
+        seqNo = Packet.getSeqNo()
+        winNo = seqNo%N;
+        queue[winNo].isAcked = true
+    }
+}
+
+class AugDataPkt {
+    Packet;
+    bool sent;
+    bool acked;
+    sem_t mutex;
+    sem_t mutex2;
+
+    send(SenderPktQueue)
+    {
+        bool cond = true;
+        mutex2.lock()
+        if (sent && Acked) {
+            cond = false;
+        }
+        mutex2.unlock();
+
+        if cond == false {
+            return cond;
+        }
+
+        SenderPktQueue.send(Packet);
+
+        mutex2.lock()
+        sent = true;
+        mutex2.unlock();
+
+        return cond;
+    }
+
+    insert(Pkt) {
+        mutex.lock()
+        Packet = pkt;
+        mutex2.lock()
+        sent = false;
+        acked = false;
+        mutex2.unlock();
+    }
+
+    isAcked() {
+        mutex2.lock()
+        acked = true;
+        mutex2.unlock();
+
+        mutex.unlock();
+    }
+}
+
+
+
+
+
+Multiple Reader-Writer
+
+mutex = Semaphore(1)
+writer = Semaphore(0)
+nextWriter = Semaphore(1)
+readers = 0
+
+Reader's code
+
+mutex.lock()
+    if reader == 0: writer.wait()
+    reader++
+mutex.unlock()
+
+# Read shared mem
+
+mutex.lock()
+    reader--
+    if reader == 0: nextWriter.signal()
+mutex.unlock()
+
+Writer's code
+
+nextWriter.wait()
+# Write in shared mem
+writer.signal()
+
+
+SendDataQ
+qFull = Semaphore(0)
+qEmpty = Semaphore(0)
+mtxLen = Semaphore(1)
+mtxStore = Semaphore(1)
+
+getLen():
+    if len == 0: qEmpty.wait()
+    return len 
+
+decLen():
+    if len == N: qFull.signal()
+    
+    mtxLen.lock()
+    len--;
+    mtxLen.unlock()
+    
+incLen():(
+    if len == 0: qEmpty.signal()
+    
+    mtxLen.lock()
+    len++;
+    mtxLen.unlock()
+    
+    if len == N: qFull.wait()
+
+
+RcvDataPktQ:
+
+validSeqNm(seqNm) :
+    if lstSeqNm > SOME_VAL:
+        if seqNm > lstSeqNm || seqNm <= lstSeqNm + WIN_SIZE:
+            return accept 
+    else if seqNm > lstSeqNm && seqNm <= lstSeqNm + WIN_SIZE:
+        return accept
+        
+    return noaccept
+
+
+Updated Multiple Reader Writer 
+
+turnstile1 = Semaphore(0)
+turnstile2 = Semaphore(0)
+mutex = Semaphore(1)
+hasWritten = Semaphore(0)
+writer = Semaphore(1)
+newReader = Semaphore(1);
+
+Writer code ::
+
+writer.wait()
+# write code 
+hasWritten.signal()
+
+Reader code ::
+
+mutex.lock()
+    reader++
+    if reader == N :
+        hasWritten.wait()
+        newReader.lock()
+        turnstile1.signal(N)
+mutex.unlock()
+
+turnstile1.wait()
+
+# read code 
+
+mutex.lock()
+    reader--
+    if reader == 0:
+        writer.signal()
+        turnstile2.signal(N)
+        newReader.unlock()
+mutex.unlock()
+
+turnstile2.wait()
+
+
+AugRcvPkt {
+    packet;
+    Semaphore mutex1(1), mutex2(1);
+    uint8_t jobCompleted;
+
+    store(Pkt)
+    collect()
+}
+
+store() {
+    mutex1.wait()
+    store packet;
+    mutex2.lock()
+    jobCompleted = 0;
+    mutex2.unlock()
+}
+
+
+
+
