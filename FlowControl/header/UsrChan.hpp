@@ -67,9 +67,9 @@ inline UsrChan::UsrChan() {
         throw error;
     }
 
-    totalReader = (indx_t *)mmapSpace;
-    currReader = (indx_t *)mmapSpace + sizeof(indx_t);
-    shm = mmapSpace + 2*sizeof(indx_t);
+    totalReader = (indx_t *)(mmapSpace);
+    currReader = (indx_t *)(mmapSpace + sizeof(indx_t));
+    shm = (mmapSpace + 2*sizeof(indx_t));
 
     reader = sem_open(MUTEX_READER, 0);
     if(reader == SEM_FAILED) {

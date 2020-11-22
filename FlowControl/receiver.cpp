@@ -16,13 +16,14 @@ void handler(int sig) {
 }
 
 int main() {
+    signal(SIGINT, handler);
     UsrChan usrChan;
-    int x = 0;
+    usrChan.regNewReader();
+    int x;
     while(stop == false) {
-        printf("Sending number %d \n", x);
-        usrChan.write((byte_t *)&x, sizeof(int));
+        usrChan.read((byte_t *)&x, sizeof(int));
+        printf("Receiving number %d \n", x);
         fflush(stdout);
-        sleep(2);
-        x++;
     }
+    usrChan.remReader();
 }
