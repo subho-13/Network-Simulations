@@ -10,6 +10,8 @@
 #include "SndDataPktQ.hpp"
 #include "CRC.hpp"
 #include "Semaphore.hpp"
+#include <bits/stdint-uintn.h>
+#include <chrono>
 
 using namespace std;
 
@@ -27,15 +29,12 @@ class SndDataQ{
     addr_t dstAddr;
     seq_t currSeqNm;
     Ptr<CRC> crc;
-
     Ptr<SndDataPktQ> sndDataPktQ;
-
-    thread tSend;
-    void send();
     atomic<bool> stop;
     Semaphore stopped;
 public:
     SndDataQ(Ptr<SndDataPktQ>& sDPQ, Ptr<CRC>& c, addr_t src,addr_t dst);
+    void send(); // run in thread
     void store(byte_t data[], len_t len);
     void stopOp();
 };
@@ -43,15 +42,22 @@ public:
 inline SndDataQ::SndDataQ(Ptr<SndDataPktQ>& sDPQ, Ptr<CRC>& c, addr_t src,addr_t dst):
 rear(0), front(0), qLen(0), qEmpty(0), qFull(0),
 srcAddr(src), dstAddr(dst), currSeqNm(0), crc(c),
-sndDataPktQ(sDPQ), tSend(&SndDataQ::send, this), stop(false), stopped(0) {}
+sndDataPktQ(sDPQ), stop(false), stopped(0) {}
 
 inline void SndDataQ::send() {
+    // cout << "Entering SndDataQ::send() \n";
+    // cout.flush();
+
     byte_t buffer[Pkt::DATA_LEN];
     len_t tmpLen;
     bool isFullLen = false;
 
+    uint64_t count = 0;
+
     while(true) {
+        count++;
         if (qLen == 0) {
+            this_thread::yield();
             qEmpty.wait();
         }
 
@@ -87,14 +93,28 @@ inline void SndDataQ::send() {
         newPkt->setSqnm(currSeqNm); currSeqNm++;
         newPkt->setCRC(*crc);
 
+        // cout << "SndDataQ::send() storing pkt \n";
+        // cout.flush();
         sndDataPktQ->store(newPkt);
+        // cout << "SndDataQ::send() stored pkt \n";
+        // cout.flush();
+        if(count%1317 == 0) {
+            this_thread::yield();
+        }
+        // this_thread::sleep_for(chrono::milliseconds(10));
     }
 
     stopped.signal();
+
+    // cout << "Exiting SndDataQ::send() \n";
+    // cout.flush();
 }
 
 inline void SndDataQ::store(byte_t data[], len_t len) {
     bool isZeroLen = false;
+
+    // cout << "Entering SndDataQ::store() \n";
+    // cout.flush();    
     
     for(indx_t i = 0; i < len; i++) {
         if (qLen == QUEUE_LEN) {
@@ -115,6 +135,8 @@ inline void SndDataQ::store(byte_t data[], len_t len) {
             isZeroLen = false;
         }
     }
+    // cout << "Exiting SndDataQ::store() \n";
+    // cout.flush();
 }
 
 inline void SndDataQ::stopOp() {

@@ -6,25 +6,28 @@
 #include "Pkt.hpp"
 
 class PktQ {
-    static const len_t QUEUE_LEN = 64;
-    Ptr<Pkt> queue[QUEUE_LEN];
+    len_t QUEUE_LEN;
+    Ptr<Pkt>* queue;
     indx_t rear;
     indx_t front;
-    Semaphore mtxPop;
-    Semaphore mtxPush;
+
     Semaphore qEmpty;
     Semaphore qFull;
+    Semaphore mtxPop;
+    Semaphore mtxPush;
 public:
-    PktQ();
+    PktQ(len_t qLen);
     void push(Ptr<Pkt>& pkt);
     void pop(Ptr<Pkt>& pkt);
     void stopOp();
+    ~PktQ();
 };
 
-inline PktQ::PktQ() :
-mtxPop(1), mtxPush(1), qEmpty(0), qFull(QUEUE_LEN) {
+inline PktQ::PktQ(len_t qLen) :
+mtxPop(1), mtxPush(1), qEmpty(0), QUEUE_LEN(qLen), qFull(qLen) {
     rear = 0;
     front = 0;
+    queue = new Ptr<Pkt> [qLen];
 }
 
 inline void PktQ::push(Ptr<Pkt>& pkt) {
@@ -54,4 +57,8 @@ inline void PktQ::stopOp() {
     mtxPop.signal();
     qFull.signal();
     mtxPush.signal();
+}
+
+inline PktQ::~PktQ() {
+    delete [] queue;
 }

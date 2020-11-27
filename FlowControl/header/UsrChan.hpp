@@ -5,6 +5,12 @@
 #include "sys/mman.h"
 #include "unistd.h"
 
+#include <bits/stdint-uintn.h>
+#include <chrono>
+#include <thread>
+#include <atomic>
+using namespace std;
+
 #include "Constant.hpp"
 #include "Error.hpp"
 #include <bits/stdint-intn.h>
@@ -25,6 +31,10 @@ private:
     sem_t* turnstile2;
 
     int64_t fd;
+
+    chrono::high_resolution_clock::time_point start;
+    chrono::high_resolution_clock::time_point end;
+    atomic<uint64_t> waitTime;
 public:
     UsrChan();
     void regNewReader();
@@ -35,6 +45,9 @@ public:
 };
 
 inline void UsrChan::regNewReader() {
+    // cout << "Entering UsrChan::regNewReader() \n";
+    // cout.flush();
+
     sem_wait(reader);
 
     sem_wait(regReader);
@@ -42,9 +55,12 @@ inline void UsrChan::regNewReader() {
     sem_post(regReader);
 
     sem_post(reader);
+
+    // cout << "Exiting UsrChan::regNewReader() \n";
+    // cout.flush();
 }
 
-inline UsrChan::UsrChan() {
+inline UsrChan::UsrChan():waitTime(80000) {
     Error error;
     error.className = "UsrChan";
     error.funcName = "Constructor";
@@ -109,36 +125,49 @@ inline UsrChan::UsrChan() {
 }
 
 inline void UsrChan::write(byte_t data[], len_t len) {
+    // cout << "Entering UsrChan::write() \n";
+    // cout.flush();
+    
     sem_wait(writer);
+
     for(indx_t i = 0; i < len; i++) {
         shm[i] = data[i];
     }
+
     sem_post(hasWritten);
+
+    // this_thread::sleep_for(chrono::milliseconds(4));
+    this_thread::yield();
+    // cout << "Exiting UsrChan::write() \n";
+    // cout.flush();
 }
 
 inline void UsrChan::read(byte_t data[], len_t len) {
+    // cout << "Entering UsrChan::read \n";
+    // cout.flush();
     sem_wait(reader);
     (*currReader)++;
-    if (*currReader == *totalReader) {
+    if ((*currReader) == (*totalReader)) {
         sem_wait(hasWritten);
         sem_wait(regReader);
-        for(indx_t i = 0; i < *totalReader; i++) {
+        for(indx_t i = 0; i < (*totalReader); i++) {
             sem_post(turnstile1);
         }
     }
     sem_post(reader);
     
     sem_wait(turnstile1);
-
+    
+    
     for(indx_t i = 0;i < len; i++) {
         data[i] = shm[i];
     }
 
     sem_wait(reader);
     (*currReader)--;
-    if (*currReader == 0) {
+    if ((*currReader) == 0) {
         sem_post(writer);
-        for(indx_t i = 0; i < *totalReader; i++) {
+        for(indx_t i = 0; i < (*totalReader); i++) {
             sem_post(turnstile2);
         }
         sem_post(regReader);
@@ -146,9 +175,16 @@ inline void UsrChan::read(byte_t data[], len_t len) {
     sem_post(reader);
 
     sem_wait(turnstile2);
+
+    // this_thread::sleep_for(chrono::milliseconds(4));
+    this_thread::yield();
+    // cout << "Exiting UsrChan::read \n";
+    // cout.flush();
 }
 
 inline void UsrChan::remReader() {
+    // cout << "Entering UsrChan::remReader\n";
+    // cout.flush();
     sem_wait(reader);
 
     sem_wait(regReader);
@@ -156,6 +192,8 @@ inline void UsrChan::remReader() {
     sem_post(regReader);
     
     sem_post(reader);
+    // cout << "Exiting UsrChan::remReader\n";
+    // cout.flush();
 }
 
 inline UsrChan::~UsrChan() {

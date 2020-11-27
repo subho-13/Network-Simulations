@@ -2,9 +2,10 @@
 #include "semaphore.h"
 
 #include "Error.hpp"
+#include <semaphore.h>
 
 class Semaphore {
-    sem_t sem;
+    sem_t* sem;
 public:
     Semaphore(int64_t val);
     void wait();
@@ -13,9 +14,10 @@ public:
 };
 
 inline Semaphore::Semaphore(int64_t val) {
-    int64_t rval = sem_init(&sem, 0, val);
+    sem = new sem_t;
+    int64_t rval = sem_init(this->sem, 0, val);
 
-    if (rval == 0) {
+    if (rval == -1) {
         Error error;
         error.className = "Semaphore";
         error.funcName = "Constructor";
@@ -25,8 +27,9 @@ inline Semaphore::Semaphore(int64_t val) {
 }
 
 inline void Semaphore::wait() {
-    int64_t rval = sem_wait(&sem);
-    if(rval == 0) {
+    int64_t rval = sem_wait(this->sem);
+    
+    if(rval == -1) {
         Error error;
         error.className = "Semaphore";
         error.funcName = "wait";
@@ -36,8 +39,8 @@ inline void Semaphore::wait() {
 }
 
 inline void Semaphore::signal() {
-    int64_t rval = sem_post(&sem);
-    if(rval == 0) {
+    int64_t rval = sem_post(this->sem);
+    if(rval == -1) {
         Error error;
         error.className = "Semaphore";
         error.funcName = "signal";
@@ -47,8 +50,9 @@ inline void Semaphore::signal() {
 }
 
 inline Semaphore::~Semaphore() {
-    int64_t rval = sem_destroy(&sem);
-    if(rval == 0) {
+    int64_t rval = sem_destroy(this->sem);
+    delete this->sem;
+    if(rval == -1) {
         Error error;
         error.className = "Semaphore";
         error.funcName = "Destructor";

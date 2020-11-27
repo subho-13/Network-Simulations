@@ -1,6 +1,8 @@
 #pragma once
 
 #include <atomic>
+#include <bits/stdint-uintn.h>
+#include <chrono>
 
 using namespace std;
 
@@ -17,17 +19,18 @@ private:
     Semaphore mutex;
     bool sent;
     bool acked;
-    indx_t retry;
+    chrono::high_resolution_clock::time_point start;
+    chrono::high_resolution_clock::time_point end;
 public:
     AugSndPkt();
     void store(Ptr<Pkt>& p);
-    void setAck();
+    void setAck(Ptr<atomic<uint64_t>> avgRtt);
     bool send(Ptr<SndPktQ>& sndPktQ);
     void stopOp();
 };
 
 inline AugSndPkt::AugSndPkt():
-oldPkt(1), mutex(1), retry(0), sent(true), acked(true) {}
+oldPkt(1), mutex(1), sent(true), acked(true) {}
 
 inline void AugSndPkt::store(Ptr<Pkt> &p){
     oldPkt.wait();
@@ -36,13 +39,15 @@ inline void AugSndPkt::store(Ptr<Pkt> &p){
     pkt = p;
     sent = false;
     acked = false;
-    retry = 0;
     mutex.signal();
 }
 
-inline void AugSndPkt::setAck() {
+inline void AugSndPkt::setAck(Ptr<atomic<uint64_t>> avgRtt) {
     mutex.wait();
+    end = chrono::high_resolution_clock::now();
     acked = true;
+    auto currVal = chrono::duration_cast<chrono::microseconds>(end - start);
+    *avgRtt = (*avgRtt + currVal.count())/2;
     mutex.signal();
 
     oldPkt.signal();
@@ -55,9 +60,8 @@ inline bool AugSndPkt::send(Ptr<SndPktQ> &sndPktQ) {
     if (!acked) {
         sndPktQ->store(pkt);
 
-        if(sent) {
-            retry++;
-        } else {
+        if(!sent) {
+            start = chrono::high_resolution_clock::now();
             sent = true;
         }
         isSent = true;

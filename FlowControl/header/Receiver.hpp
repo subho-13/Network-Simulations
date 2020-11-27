@@ -4,6 +4,7 @@
 #include "Ptr.hpp"
 #include "UsrChan.hpp"
 #include "Pkt.hpp"
+#include <thread>
 
 class Receiver {
     Ptr<UsrChan> chan;
@@ -15,9 +16,17 @@ public:
 
 inline Receiver::Receiver(Ptr<UsrChan>& chn) : chan(chn) {
     chan->regNewReader();
+    this_thread::sleep_for(chrono::seconds(7));
 }
 
 inline void Receiver::receive(Ptr<Pkt>& pkt) {
+    // cout << "Entering Receiver::receive() \n";
+    // cout.flush();
+    Ptr<Pkt> newPkt(new Pkt());
     chan->read(pktBuf, PACKET_LEN);
-    pkt->read(pktBuf);
+    newPkt->read(pktBuf);
+    pkt = newPkt;
+    // this_thread::sleep_for(chrono::milliseconds(10));
+    // cout << "Exiting Receiver::receive() \n";
+    // cout.flush();
 }

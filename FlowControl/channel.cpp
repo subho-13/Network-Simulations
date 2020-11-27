@@ -1,5 +1,7 @@
 #include <atomic>
+#include <chrono>
 #include <cstdio>
+#include <thread>
 
 using namespace std;
 
@@ -20,9 +22,12 @@ int main() try {
     while(!stop) {
         printf("\b-[-]->");
         fflush(stdout);
-        sleep(2);
+        adminChan.taint();
+        this_thread::yield();
+        this_thread::sleep_for(chrono::milliseconds(200));
     } 
 
+    cout << "\n";
 } catch(Error e) {
     e.show();
 }

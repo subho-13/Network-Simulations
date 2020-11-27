@@ -25,7 +25,9 @@ class Controller {
     Ptr<RcvDataQ> rcvDataQ;
 public:
     Controller(addr_t srcAddr, addr_t dstAddr);
+    void startSendOp();
     void send(byte_t data[], len_t len);
+    void startRcvOp();
     void recv(byte_t data[], len_t len);
     void stopOp();
 };
@@ -40,8 +42,8 @@ rcvPktQ(new RcvPktQ(receiver, srcAddr, dstAddr, crc)),
 sndDataPktQ(new SndDataPktQ(sndPktQ, rcvPktQ)),
 rcvDataPktQ(new RcvDataPktQ(sndPktQ, rcvPktQ, crc)),
 sndDataQ(new SndDataQ(sndDataPktQ, crc, srcAddr, dstAddr)),
-rcvDataQ(new RcvDataQ(rcvDataPktQ))
-{}
+rcvDataQ(new RcvDataQ(rcvDataPktQ)) {}
+
 
 inline void Controller::send(byte_t data[], len_t len) {
     sndDataQ->store(data, len);

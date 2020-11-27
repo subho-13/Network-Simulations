@@ -4,6 +4,7 @@
 #include "Semaphore.hpp"
 #include "Ptr.hpp"
 #include "Pkt.hpp"
+#include <thread>
 
 class AugRcvPkt {
 private:
