@@ -1,0 +1,16 @@
+Received signal2
+
+ +++++++++++++++ 
+
+ RTT is :: 3885 microseconds 
+7715 valid packets out of 15587 packets received in 77542 milliseconds 
+
+ +++++++++++++++ 
+Received signal2
+
+ +++++++++++++++ 
+
+ RTT is :: 1605 microseconds 
+6662 valid packets out of 13552 packets received in 114996 milliseconds 
+
+ +++++++++++++++ 
