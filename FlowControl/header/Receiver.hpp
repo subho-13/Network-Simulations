@@ -16,17 +16,12 @@ public:
 
 inline Receiver::Receiver(Ptr<UsrChan>& chn) : chan(chn) {
     chan->regNewReader();
-    this_thread::sleep_for(chrono::seconds(7));
+    this_thread::sleep_for(chrono::seconds(5));
 }
 
 inline void Receiver::receive(Ptr<Pkt>& pkt) {
-    // cout << "Entering Receiver::receive() \n";
-    // cout.flush();
     Ptr<Pkt> newPkt(new Pkt());
     chan->read(pktBuf, PACKET_LEN);
     newPkt->read(pktBuf);
     pkt = newPkt;
-    // this_thread::sleep_for(chrono::milliseconds(10));
-    // cout << "Exiting Receiver::receive() \n";
-    // cout.flush();
 }

@@ -19,11 +19,6 @@ public:
 inline Sender::Sender(Ptr<UsrChan>& chn): chan(chn){}
 
 inline void Sender::send(Ptr<Pkt> &pkt) {
-    // cout << "Entering Sender::send() \n";
-    // cout.flush();
     pkt->write(pktBuf);
     chan->write(pktBuf, PACKET_LEN);
-    // this_thread::sleep_for(chrono::milliseconds(60));
-    // cout << "Exiting Sender::send() \n";
-    // cout.flush();
 }

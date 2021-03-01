@@ -1,0 +1,61 @@
+Walsh Table
+
+W(N) -> W(2N)
+
+1<=r<=N, 1<=c<=N ; W(2n)[r][c] = W(N)[r][c]
+N+1<=r<=2N, 1<=c<=N ; W(2N)[r][c] = W(N)[r-N][c]
+1<=r<=N, N+1<=c<=2N ; W(2N)[r][c] = W(N)[r][c-N]
+N+1<=r<=2N, N+1<=c<=2N ; W(2N)[r][c] = -1*W(N)[r-N][c-N]
+
+channel
+
+hasWritten = Semaphore(0)
+hasRead = Semaphore(0)
+writer = Semaphore(1)
+reader = Semaphore(1)
+turnstile1 = Semaphore(0)
+
+send():
+    encode the data
+    writer.wait()
+    if sender has sent:
+        hasWritten.signal()
+        hasRead.wait()
+        clear hasSent list
+    
+    add sender to hasSent list
+    write encoded data to channel
+    writer.signal()
+
+broadcast():
+    writer.wait()
+    hasWritten.signal()
+    hasRead.wait()
+    clear hasSent list
+    writer.signal()
+
+
+receive():
+    reader.wait()
+    currNumReaders++;
+    if currNumReaders == totalNumReaders {
+        hasWritten.wait()
+        turnstile1.signal(totalNumReaders)
+    }
+    reader.signal()
+    
+    turnstile1.wait()
+
+    read data
+
+    reader.wait()
+    currNumReaders--;
+    if currNumReaders == 0 {
+        hasRead.signal()
+        turnstile2.signal(totalNumReaders)
+    }
+    reader.signal()
+
+    turnstile2.wait()
+
+    return decoded data

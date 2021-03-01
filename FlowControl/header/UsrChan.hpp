@@ -31,10 +31,6 @@ private:
     sem_t* turnstile2;
 
     int64_t fd;
-
-    chrono::high_resolution_clock::time_point start;
-    chrono::high_resolution_clock::time_point end;
-    atomic<uint64_t> waitTime;
 public:
     UsrChan();
     void regNewReader();
@@ -44,23 +40,7 @@ public:
     ~UsrChan();
 };
 
-inline void UsrChan::regNewReader() {
-    // cout << "Entering UsrChan::regNewReader() \n";
-    // cout.flush();
-
-    sem_wait(reader);
-
-    sem_wait(regReader);
-    (*totalReader)++;
-    sem_post(regReader);
-
-    sem_post(reader);
-
-    // cout << "Exiting UsrChan::regNewReader() \n";
-    // cout.flush();
-}
-
-inline UsrChan::UsrChan():waitTime(80000) {
+inline UsrChan::UsrChan() {
     Error error;
     error.className = "UsrChan";
     error.funcName = "Constructor";
@@ -124,27 +104,26 @@ inline UsrChan::UsrChan():waitTime(80000) {
     }
 }
 
-inline void UsrChan::write(byte_t data[], len_t len) {
-    // cout << "Entering UsrChan::write() \n";
-    // cout.flush();
-    
-    sem_wait(writer);
+inline void UsrChan::regNewReader() {
+    sem_wait(reader);
 
+    sem_wait(regReader);
+    (*totalReader)++;
+    sem_post(regReader);
+
+    sem_post(reader);
+}
+
+inline void UsrChan::write(byte_t data[], len_t len) {   
+    sem_wait(writer);
     for(indx_t i = 0; i < len; i++) {
         shm[i] = data[i];
     }
-
     sem_post(hasWritten);
-
-    // this_thread::sleep_for(chrono::milliseconds(4));
     this_thread::yield();
-    // cout << "Exiting UsrChan::write() \n";
-    // cout.flush();
 }
 
-inline void UsrChan::read(byte_t data[], len_t len) {
-    // cout << "Entering UsrChan::read \n";
-    // cout.flush();
+inline void UsrChan::read(byte_t data[], len_t len) { 
     sem_wait(reader);
     (*currReader)++;
     if ((*currReader) == (*totalReader)) {
@@ -175,16 +154,10 @@ inline void UsrChan::read(byte_t data[], len_t len) {
     sem_post(reader);
 
     sem_wait(turnstile2);
-
-    // this_thread::sleep_for(chrono::milliseconds(4));
     this_thread::yield();
-    // cout << "Exiting UsrChan::read \n";
-    // cout.flush();
 }
 
 inline void UsrChan::remReader() {
-    // cout << "Entering UsrChan::remReader\n";
-    // cout.flush();
     sem_wait(reader);
 
     sem_wait(regReader);
@@ -192,8 +165,6 @@ inline void UsrChan::remReader() {
     sem_post(regReader);
     
     sem_post(reader);
-    // cout << "Exiting UsrChan::remReader\n";
-    // cout.flush();
 }
 
 inline UsrChan::~UsrChan() {

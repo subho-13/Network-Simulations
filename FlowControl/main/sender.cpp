@@ -69,15 +69,10 @@ void send_data(Ptr<SndDataQ> sndDataQ) {
     uint64_t x = 1;
     while(!stop) {
         sndDataQ->store((byte_t *)(&x), sizeof(uint64_t));
-        // cout << "\n +++++++++++++++ \n";
-        // cout.flush();
-        // cout << x << "\n";
-        // cout.flush();
-        // sndDataPktQ->showStat();
-        // rcvPktQ->showStat();
-        // cout << "\n +++++++++++++++ \n";
-        // cout.flush();
+        cout << "Sender -> " << x << "\n";
+        cout.flush();
         x++;
+        this_thread::yield();
     }
 }
 

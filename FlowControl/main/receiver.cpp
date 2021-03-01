@@ -66,12 +66,9 @@ void recv_data(Ptr<RcvDataQ> rcvDataQ) {
     uint64_t x;
     while(!stop) {
         rcvDataQ->collect((byte_t *)(&x), sizeof(uint64_t));
-        // cout << "\n +++++++++++++++ \n";
-        // cout << x << "\n";
-        // cout.flush();
-        // rcvPktQ->showStat();
-        // cout << "\n +++++++++++++++ \n";
-        // cout.flush();
+        cout << x << "<- Receiver" << "\n";
+        cout.flush();
+        this_thread::yield();
     }
 }
 

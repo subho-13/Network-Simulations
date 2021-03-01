@@ -17,15 +17,15 @@ using namespace std;
 #include "RcvPktQ.hpp"
 
 class SndDataPktQ {
-    static const len_t QUEUE_LEN = 1;
+    static const len_t QUEUE_LEN = SENDER_WINDOW_LEN;
+
     AugSndPkt queue[QUEUE_LEN];
     indx_t qFront;
     
     Ptr<SndPktQ> sndPktQ;
     Ptr<RcvPktQ> rcvPktQ;
 
-    Ptr<atomic<uint64_t>> avgRtt;
-    atomic<uint64_t> waitTime;
+    atomic<uint64_t> rtt;
 
     atomic<bool> stop;
     Semaphore sStopped;
@@ -35,69 +35,65 @@ class SndDataPktQ {
     bool isValidSeq(seq_t seq);
     Semaphore rStopped;
 public:
-    SndDataPktQ(Ptr<SndPktQ>& sPQ, Ptr<RcvPktQ>& rPQ, Ptr<atomic<uint64_t>>& avgR);
+    SndDataPktQ(Ptr<SndPktQ>& sPQ, Ptr<RcvPktQ>& rPQ);
     void rcvAck();
     void sndData();
     void store(Ptr<Pkt>& pkt);
+    void showStat();
     void stopOp();
 };
 
-inline SndDataPktQ::SndDataPktQ(Ptr<SndPktQ>& sPQ, Ptr<RcvPktQ>& rPQ, Ptr<atomic<uint64_t>>& avgR):
-sndPktQ(sPQ), rcvPktQ(rPQ), qFront(0), stop(false),
-sStopped(0), minSeqNum(0),rStopped(0), avgRtt(avgR),
-waitTime(200000) {}
+inline SndDataPktQ::SndDataPktQ(Ptr<SndPktQ>& sPQ, Ptr<RcvPktQ>& rPQ):
+qFront(0), sndPktQ(sPQ), rcvPktQ(rPQ), rtt(10000), stop(false),
+sStopped(0), minSeqNum(0),rStopped(0) {}
 
 inline void SndDataPktQ::sndData() {
-    // cout << "Entering SndDataPktQ::sndData() \n";
-    // cout.flush();    
+    uint64_t waitTime = 1000;
+    bool hasSentAny = false;
 
-    while(true) {
+    while(true) {      
         if(stop) {
             break;
         }
         
-        bool hasSentAny = false;
+        hasSentAny = false;
 
         for(indx_t i = 0; i < QUEUE_LEN; i++) {
-            // cout << "SndDataPktQ::sndData() sending "<< i <<" packet \n";
-            // cout.flush(); 
             hasSentAny |= queue[i].send(sndPktQ);
-            // cout << "SndDataPktQ::sndData() sent "<< i <<" packet \n";
-            // cout.flush(); 
         }
 
-        waitTime = (*avgRtt)*(QUEUE_LEN)/1000 + 1;
-
-        if(waitTime < 29) {
-            waitTime = 29;
+        if(hasSentAny == true) {
+            waitTime = rtt*QUEUE_LEN;
+            waitTime /= 1000;
+            waitTime += 1;
+        }
+        
+        if (rtt < 1000) {
+            waitTime *= 5
         }
 
-        if(waitTime > 2000) {
-            waitTime = 2000;
+        if(waitTime < 30) {
+            waitTime = 30;
         }
 
-        this_thread::sleep_for(chrono::milliseconds(waitTime));     
+        if(waitTime > 120) {
+            waitTime = 120;
+        }
+
+        this_thread::sleep_for(chrono::milliseconds(waitTime));
+        this_thread::yield();
     }
 
     sStopped.signal();
-    // cout << "Exiting SndDataPktQ::sndData() \n";
-    // cout.flush(); 
 }
 
 inline void SndDataPktQ::store(Ptr<Pkt> &pkt) {
-    // cout << "Entering SndDataPktQ::store() \n";
-    // cout.flush();
     queue[qFront].store(pkt);
     qFront = (qFront + 1)%QUEUE_LEN;
-
-    // cout << "Exiting SndDataPktQ::store() \n";
-    // cout.flush();
 }
 
 inline bool SndDataPktQ::isValidSeq(seq_t seq) {
-    // cout << "Entering SndDataPktQ::isValidSeq() \n";
-    // cout.flush();
-    if (minSeqNum <= MAXSEQNO - sizeof(QUEUE_LEN)) {
+    if (minSeqNum <= MAXSEQNO - QUEUE_LEN) {
         if (seq >= minSeqNum && seq < (minSeqNum + QUEUE_LEN)) {
             return true;
         }
@@ -111,30 +107,19 @@ inline bool SndDataPktQ::isValidSeq(seq_t seq) {
 }
 
 inline void SndDataPktQ::rcvAck() {
-    // cout << "Entering SndDataPktQ::rcvAck() \n";
-    // cout.flush();
     Ptr<Pkt> tmpPkt;
     seq_t tmpSeq;
-    uint64_t count = 0;
 
     while(!stop) {
-        // cout << "SndDataPktQ::rcvAck() fetching Ack\n";
-        // cout.flush();
         rcvPktQ->getAckPkt(tmpPkt);
-        // cout << "SndDataPktQ::rcvAck() fetched Ack\n";
-        // cout.flush();
         tmpSeq = tmpPkt->getSeqNum();
         if(isValidSeq(tmpSeq)) {
-            queue[tmpSeq%QUEUE_LEN].setAck(avgRtt);
+            queue[tmpSeq%QUEUE_LEN].setAck(rtt);
 
             if(minSeqNum == tmpSeq) {
                 minSeqNum++;
             }
-        }
-
-        count++;
-
-        if(count % 1417 == 0) {
+            
             this_thread::yield();
         }
     }
@@ -142,8 +127,14 @@ inline void SndDataPktQ::rcvAck() {
     rStopped.signal();
 }
 
+inline void SndDataPktQ::showStat() {
+    cout << "\n RTT is :: " << rtt << " microseconds \n";
+    cout.flush();
+}
+
 inline void SndDataPktQ::stopOp() {
     stop = true;
     sStopped.wait();
     rStopped.wait();
+    this_thread::yield();
 }

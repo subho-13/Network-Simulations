@@ -9,8 +9,8 @@
 class AugRcvPkt {
 private:
     Ptr<Pkt> pkt;
-    Semaphore newPkt;
     Semaphore collected;
+    Semaphore newPkt;
 public:
     AugRcvPkt();
     void store(Ptr<Pkt>& p);
@@ -35,27 +35,5 @@ inline void AugRcvPkt::collect(Ptr<Pkt>& p) {
 inline void AugRcvPkt::stopOp() {
     newPkt.signal();
     collected.signal();
+    this_thread::yield();
 }
-
-/*
-AugRcvPkt - Store received DataPackets
-store and collect will work in different threads
-Semaphores  
-1. newPkt(0) (is this a new packet)
-2. collected(1) (is the packet collected)
-
-store:
-    collected.wait() // is the old packet collected?
-    store packet
-    newPkt.signal() // notify that a newPkt is present
-
-collect:
-    newPkt.wait()   // is a new packet available?
-    collect packet
-    collected.signal() // notify that the old packet 
-                       //is collected
-
-When destructor is called, get done with the semaphores
-
-checked? Yes
-*/

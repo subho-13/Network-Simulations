@@ -1,5 +1,5 @@
 #!/bin/bash
-sudo nice -n -10 timeout -s SIGINT 4m ./channel &
+timeout -s SIGINT 40s ./channel &
 sleep 4
-sudo nice -n -10 timeout -s SIGINT 4m ./receiver 2 1 &
-sudo nice -n -10 timeout -s SIGINT 4m ./sender 1 2 &>> sender.log
+timeout -s SIGINT 40s ./receiver 2 1 &
+timeout -s SIGINT 40s ./sender 1 2 &>> sender.log

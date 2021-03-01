@@ -6,58 +6,23 @@
 using namespace std;
 
 class Taint {
-     static const len_t bitTaintTableLen = 8;
-     static const len_t burstTaintTableLen = 247;
-
-     byte_t bitTaintTable[bitTaintTableLen];
-     byte_t burstTaintTable[burstTaintTableLen];
-
+     static const len_t TABLE_LEN = 255;
+     byte_t table[TABLE_LEN];
      minstd_rand0 generator;
 public:
-    Taint() {
-        byte_t tmp = 1;
-        for (indx_t i = 0; i < bitTaintTableLen; i++) {
-            bitTaintTable[i] = tmp;
-            tmp <<= 1;
-        }
-
-        bool isPresent;
-        indx_t i = 0;
-        byte_t val = 1;
-
-        while (i < burstTaintTableLen) {
-            isPresent = false;
-
-            for (indx_t j = 0; j < bitTaintTableLen; j++) {
-                if(bitTaintTable[j] == val) {
-                    isPresent = true;
-                    break;
-                }
-            }
-
-            if (!isPresent) {
-                burstTaintTable[i] = val;
-                i++;
-            }
-
-            val++;
+    Taint() : generator(time(NULL)%2013) {
+        for (indx_t i = 1; i <= TABLE_LEN; i++) {
+            table[i-1] = i;
         }
 
         minstd_rand0 gnrtr(time(NULL));
         generator = gnrtr;
     }
 
-     void taintBit(byte_t data[], len_t len) {
-        indx_t i = generator();
-        indx_t j = generator()%bitTaintTableLen;
-
-        data[i] ^= bitTaintTable[j];
-    }
-
-     void taintBurst(byte_t data[], len_t len) {
+     void taint(byte_t data[], len_t len) {
         indx_t i = generator()%len;
-        indx_t j = generator()%burstTaintTableLen;
+        indx_t j = generator()%TABLE_LEN;
 
-        data[i] ^= burstTaintTable[j];
+        data[i] ^= table[j];
     }
 };

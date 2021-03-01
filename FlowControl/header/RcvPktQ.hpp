@@ -15,118 +15,91 @@ using namespace std;
 #include "PktQ.hpp"
 #include "CRC.hpp"
 
-#define DEBUG 1
-
 using namespace std;
 
 class RcvPktQ {
-    Ptr<PktQ> DataPktQ;
+    static const len_t QUEUE_LEN = RECEIVER_WINDOW_LEN*4;
+
     Ptr<PktQ> AckPktQ;
+    Ptr<PktQ> DataPktQ;
 
     Ptr<Receiver> receiver;
 
     addr_t srcAddr;
     addr_t dstAddr;
-
     Ptr<CRC> crc;
 
-    Ptr<atomic<uint64_t>> numPackets;
+    atomic<uint64_t> numValidPackets;
+    atomic<uint64_t> numPackets;
 
+    chrono::high_resolution_clock::time_point start;
+    chrono::high_resolution_clock::time_point current;
     atomic<bool> stop;
     Semaphore stopped;
 public:
-    RcvPktQ(Ptr<Receiver>& rcvr, addr_t src, addr_t dst, Ptr<CRC>& c, Ptr<atomic<uint64_t>>& n);
-    void recv(); // Run in thread
+    RcvPktQ(Ptr<Receiver>& rcvr, addr_t src, addr_t dst, Ptr<CRC>& c);
+    void recv();
     void getDataPkt(Ptr<Pkt>& pkt);
     void getAckPkt(Ptr<Pkt>& pkt);
+    void showStat();
     void stopOp();
 };
 
+inline RcvPktQ::RcvPktQ(Ptr<Receiver>& rcvr, addr_t src, addr_t dst, Ptr<CRC>& c): 
+AckPktQ(new PktQ(QUEUE_LEN)), DataPktQ(new PktQ(QUEUE_LEN)),
+receiver(rcvr),
+ srcAddr(src), dstAddr(dst), crc(c), 
+ stop(false), stopped(0) {}
+
 inline void RcvPktQ::recv() {
-    // cout << "Entering RcvPktQ::recv() \n";
-    // cout.flush();
-
     Ptr<Pkt> pkt(new Pkt());
-
-    uint64_t count = 0;
+    addr_t src, dst;
     
-    while(!stop) {
-        count++;
-
-        if(count%1723 == 0) {
-            this_thread::yield();
-        }
-        // cout << "RcvPktQ::recv() receiving\n";
-        // cout.flush();
+    start = chrono::high_resolution_clock::now();
+    while(!stop) {        
         receiver->receive(pkt);
-        // cout << "RcvPktQ::recv() received\n";
-        // cout.flush();
-        // cout << "RcvPktQ::recv() inserting\n";
-        // cout.flush();
-        // cout << "Entering RcvPktQ::insert() \n";
-        // cout.flush();
+
+        numPackets++;
 
         if(pkt->isCorrupt(*crc)) {
-            // cout << "Entering RcvPktQ::insert(), packet corrupt \n";
-            // cout.flush();
             continue;
         }
 
-        addr_t srcTmp, dstTmp;
-        pkt->getAddr(srcTmp, dstTmp);
+        pkt->getAddr(src, dst);
 
-        if(dstTmp != srcAddr || srcTmp != dstAddr) {
-            // cout << "Entering RcvPktQ::insert(), incorrect address \n";
-            // cout.flush();
-
+        if(dst != srcAddr || src != dstAddr) {
             continue;
         }
-
-        (*numPackets)++;
         
         if (pkt->getType() == Pkt::TYPE_ACK) {
-            // cout << "Entering RcvPktQ::insert(), insering Ack \n";
-            // cout.flush();
             AckPktQ->push(pkt);
         } else if (pkt->getType() == Pkt::TYPE_DATA) {
-            // cout << "Entering RcvPktQ::insert(), inserting Data \n";
-            // cout.flush();
             DataPktQ->push(pkt);
         }
-        // cout << "RcvPktQ::recv() inserted\n";
-        // cout.flush();
-        // this_thread::sleep_for(chrono::milliseconds(20));
-        // this_thread::yield();
-    }
-    stopped.signal();
 
-    // cout << "Exiting RcvPktQ::recv() \n";
-    // cout.flush();
+        numValidPackets++;
+        this_thread::yield();
+    }
+    
+    stopped.signal();
 }
 
-inline RcvPktQ::RcvPktQ(Ptr<Receiver>& rcvr, addr_t src, addr_t dst, Ptr<CRC>& c, Ptr<atomic<uint64_t>>& n): 
-receiver(rcvr), srcAddr(src), dstAddr(dst), 
-crc(c), stop(false), stopped(0), AckPktQ(new PktQ(WINDOW_LEN*3)),
-DataPktQ(new PktQ(WINDOW_LEN*3)), numPackets(n) {}
-
 inline void RcvPktQ::getDataPkt(Ptr<Pkt>& pkt) {
-    // cout << "Entering RcvPktQ::getDataPktQ() \n";
-    // cout.flush();
-
     DataPktQ->pop(pkt);
-
-    // cout << "Exiting RcvPktQ::getDataPktQ() \n";
-    // cout.flush();
 }
 
 inline void RcvPktQ::getAckPkt(Ptr<Pkt> &pkt) {
-    // cout << "Entering RcvPktQ::getAckPktQ() \n";
-    // cout.flush();
-
     AckPktQ->pop(pkt);
+}
 
-    // cout << "Exiting RcvPktQ::getDataPktQ() \n";
-    // cout.flush();
+
+inline void RcvPktQ::showStat() {
+    current = chrono::high_resolution_clock::now();
+    cout << numValidPackets << " valid packets out of "
+         << numPackets << " packets received in "
+         << chrono::duration_cast<chrono::milliseconds>(current-start).count()
+         << " milliseconds \n";
+    cout.flush();
 }
 
 inline void RcvPktQ::stopOp() {
@@ -134,4 +107,5 @@ inline void RcvPktQ::stopOp() {
     DataPktQ->stopOp();
     AckPktQ->stopOp();
     stopped.wait();
+    this_thread::yield();
 }

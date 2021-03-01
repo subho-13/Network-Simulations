@@ -1,5 +1,4 @@
 #include <atomic>
-#include <bits/stdint-uintn.h>
 #include <chrono>
 #include <cstdio>
 #include <thread>

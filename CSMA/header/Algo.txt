@@ -1,0 +1,58 @@
+Writer():
+    non-atomically increment numSenders
+
+    writer.wait()
+        realNumSenders++
+    writer.signal()
+
+    write bytes
+
+    writer.wait()
+        realNumSenders--
+
+        if realNumSenders == 0:
+            numSenders = 0
+            hasWritten.signal()
+            hasRead.wait()
+    writer.signal()
+
+Reader():
+    hasWritten.wait()
+    read bytes
+    hasRead.signal()
+
+SenseChannel():
+    non-atomically check if numSenders == 0:
+        return channel free
+    
+    return channel in use
+
+NonPersistent(packet):
+    while (SenseChannel() == channel in use) {
+        backoff for some random time
+    }
+
+    channel.Write(packet)
+
+OnePersistent(packet):
+    while(SenseChannel() == channel in use) {}
+
+    channel.Write(packet)
+
+PPersistent(packet):
+    while(true) {
+        choose x
+        while(SenseChannel() == channel in use) {}
+        
+        if (x < p) {
+            channel.Write(packet)
+            break
+        }
+
+        sleep for timeSlot
+
+        if (SenseChannel() == channel in use) {
+            backoff for some random time
+        }
+    }
+    

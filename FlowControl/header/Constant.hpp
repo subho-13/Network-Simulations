@@ -14,8 +14,9 @@ typedef uint8_t type_t;
 typedef uint32_t seq_t;
 typedef uint32_t crc_t;
 
-const len_t PACKET_LEN = 128;
-const len_t WINDOW_LEN = 32;
+const len_t PACKET_LEN = 64;
+const len_t SENDER_WINDOW_LEN = 16;
+const len_t RECEIVER_WINDOW_LEN = 16;
 const seq_t MAXSEQNO   = UINT32_MAX;
 
 const char CHAN_NAME[] = "flowchan";

@@ -1,5 +1,6 @@
 #pragma once
 
+#include <bits/stdint-uintn.h>
 #include <thread>
 #include <atomic>
 
@@ -11,64 +12,58 @@ using namespace std;
 #include "Semaphore.hpp"
 #include "Sender.hpp"
 #include "Ptr.hpp"
+#include "CRC.hpp"
 
 class SndPktQ {
+    static const len_t QUEUE_LEN = SENDER_WINDOW_LEN*4;
     Ptr<PktQ> pktQ;
-    Ptr<Sender> sender;    
+
+    Ptr<Sender> sender;
+
+    addr_t srcAddr;
+    addr_t dstAddr;
+    Ptr<CRC> crc;
+
     atomic<bool> stop;
     Semaphore stopped;
 public:
-    SndPktQ(Ptr<Sender>& sndr);
+    SndPktQ(Ptr<Sender> sndr, addr_t src, addr_t dst, Ptr<CRC>& c);
     void send();
-    void store(Ptr<Pkt>& pkt);
+    void store(Ptr<Pkt> pkt);
     void stopOp();
 };
 
-inline void SndPktQ::send() {
-    // cout << "Entering SndPktQ::send() \n";
-    // cout.flush();
-    Ptr<Pkt> tmp;
-    uint64_t count = 0;
-    while(true) {
-        count++;
+inline SndPktQ::SndPktQ(Ptr<Sender> sndr, addr_t src, addr_t dst, Ptr<CRC>& c):
+pktQ(new PktQ(QUEUE_LEN)), sender(sndr), 
+srcAddr(src), dstAddr(dst), crc(c),
+stop(false), stopped(0) {}
 
-        if(count%1129 == 0) {
-            this_thread::yield();
-        }
-        // cout << "SndPktQ::send() popping pkt \n";
-        // cout.flush();
+inline void SndPktQ::send() {
+    Ptr<Pkt> tmp;
+    while(true) {
         pktQ->pop(tmp);
-        // cout << "SndPktQ::send() popped pkt \n";
-        // cout.flush();
+        
         if(stop == true) {
             break;
         }
 
-        // cout << "SndPktQ::send() sending pkt \n";
-        // cout.flush();
         sender->send(tmp);
-        // cout << "SndPktQ::send() sent pkt \n";
-        // cout.flush();
+        this_thread::yield();
     }
 
     stopped.signal();
-    // cout << "Exiting SndPktQ::send() \n";
-    // cout.flush();
 }
 
-inline SndPktQ::SndPktQ(Ptr<Sender>& sndr):
-pktQ(new PktQ(WINDOW_LEN*3)), sender(sndr), stop(false), stopped(0) {}
+inline void SndPktQ::store(Ptr<Pkt> pkt) {
+    pkt->setAddr(srcAddr, dstAddr);
+    pkt->setCRC(*crc);
 
-inline void SndPktQ::store(Ptr<Pkt>& pkt) {
-    // cout << "Entering SndPktQ::store() \n";
-    // cout.flush();
     pktQ->push(pkt);
-    // cout << "Exiting SndPktQ::store() \n";
-    // cout.flush();
 }
 
 inline void SndPktQ::stopOp() {
     stop = true;
     pktQ->stopOp();
     stopped.wait();
+    this_thread::yield();
 }

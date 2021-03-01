@@ -3,6 +3,7 @@
 #include <atomic>
 #include <bits/stdint-uintn.h>
 #include <chrono>
+#include <thread>
 
 using namespace std;
 
@@ -24,7 +25,7 @@ private:
 public:
     AugSndPkt();
     void store(Ptr<Pkt>& p);
-    void setAck(Ptr<atomic<uint64_t>> avgRtt);
+    void setAck(atomic<uint64_t>& avgRtt);
     bool send(Ptr<SndPktQ>& sndPktQ);
     void stopOp();
 };
@@ -42,23 +43,25 @@ inline void AugSndPkt::store(Ptr<Pkt> &p){
     mutex.signal();
 }
 
-inline void AugSndPkt::setAck(Ptr<atomic<uint64_t>> avgRtt) {
+inline void AugSndPkt::setAck(atomic<uint64_t>& avgRtt) {
     mutex.wait();
-    end = chrono::high_resolution_clock::now();
     acked = true;
-    auto currVal = chrono::duration_cast<chrono::microseconds>(end - start);
-    *avgRtt = (*avgRtt + currVal.count())/2;
     mutex.signal();
 
     oldPkt.signal();
+
+    end = chrono::high_resolution_clock::now();
+    auto currVal = chrono::duration_cast<chrono::microseconds>(end - start);
+    avgRtt = (avgRtt + currVal.count())/2;
 }
 
 inline bool AugSndPkt::send(Ptr<SndPktQ> &sndPktQ) {
     bool isSent = false;
+    Ptr<Pkt> tmp;
 
     mutex.wait();
     if (!acked) {
-        sndPktQ->store(pkt);
+        tmp = pkt;
 
         if(!sent) {
             start = chrono::high_resolution_clock::now();
@@ -68,46 +71,15 @@ inline bool AugSndPkt::send(Ptr<SndPktQ> &sndPktQ) {
     }
     mutex.signal();
 
+    if(isSent) {
+        sndPktQ->store(tmp);
+    }
+
     return isSent;
 }
 
 inline void AugSndPkt::stopOp() {
     oldPkt.signal();
     mutex.signal();
+    this_thread::yield();
 }
-
-
-
-/*
-AugSndPkt - Store data packets to store
-sent, acked - Conditions
-Semaphores - 
-oldPkt(1) - Locks if the old packet is not acked
-mutex(1) - Locks to update sent/acked
-retry - Use in later purposes
-
-store:
-    oldPkt.wait() // wait for the old packet to be acked
-    store packet
-
-    mutex.lock() // update sent, acked and retry
-    sent, acked = false
-    retry = 0
-    mutex.unlock()
-
-send:
-    check if it's already acked
-    if so, do nothing (use mutex), return false (nothing sent)
-
-    else send the packet to sndPktQ
-
-    now again, if it was already sent, increment retry
-    else set sent = true
-    return true (sent something)
-
-setAck:
-    use mutex to set acked = true
-    signal intake of new packet
-
-Use destructor to get done with any semaphore
-*/

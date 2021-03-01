@@ -25,10 +25,10 @@ class Controller {
     Ptr<RcvDataQ> rcvDataQ;
 public:
     Controller(addr_t srcAddr, addr_t dstAddr);
-    void startSendOp();
+    void startOp();
     void send(byte_t data[], len_t len);
-    void startRcvOp();
     void recv(byte_t data[], len_t len);
+    void showStat();
     void stopOp();
 };
 
@@ -37,12 +37,30 @@ crc(new CRC()),
 usrChan(new UsrChan()), 
 sender(new Sender(usrChan)),
 receiver(new Receiver(usrChan)),
-sndPktQ(new SndPktQ(sender)),
+sndPktQ(new SndPktQ(sender, srcAddr, dstAddr, crc)),
 rcvPktQ(new RcvPktQ(receiver, srcAddr, dstAddr, crc)),
 sndDataPktQ(new SndDataPktQ(sndPktQ, rcvPktQ)),
-rcvDataPktQ(new RcvDataPktQ(sndPktQ, rcvPktQ, crc)),
-sndDataQ(new SndDataQ(sndDataPktQ, crc, srcAddr, dstAddr)),
+rcvDataPktQ(new RcvDataPktQ(sndPktQ, rcvPktQ)),
+sndDataQ(new SndDataQ(sndDataPktQ)),
 rcvDataQ(new RcvDataQ(rcvDataPktQ)) {}
+
+inline void Controller::startOp() {
+    thread t1(&SndPktQ::send, &(*sndPktQ));
+    thread t2(&RcvPktQ::recv, &(*rcvPktQ));
+    thread t3(&SndDataPktQ::sndData, &(*sndDataPktQ));
+    thread t4(&SndDataPktQ::rcvAck, &(*sndDataPktQ));
+    thread t5(&RcvDataPktQ::store, &(*rcvDataPktQ));
+    thread t6(&SndDataQ::send, &(*sndDataQ));
+    thread t7(&RcvDataQ::store, &(*rcvDataQ));
+
+    t1.detach();
+    t2.detach();
+    t3.detach();
+    t4.detach();
+    t5.detach();
+    t6.detach();
+    t7.detach();
+}
 
 
 inline void Controller::send(byte_t data[], len_t len) {
@@ -51,6 +69,15 @@ inline void Controller::send(byte_t data[], len_t len) {
 
 inline void Controller::recv(byte_t data[], len_t len) {
     rcvDataQ->collect(data, len);
+}
+
+inline void Controller::showStat() {
+    cout << "\n +++++++++++++++ \n";
+    cout.flush();
+    sndDataPktQ->showStat();
+    rcvPktQ->showStat();
+    cout << "\n +++++++++++++++ \n";
+    cout.flush();
 }
 
 inline void Controller::stopOp() {

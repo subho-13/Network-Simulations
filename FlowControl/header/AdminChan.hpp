@@ -8,6 +8,8 @@
 #include <bits/stdint-uintn.h>
 #include <iostream>
 #include <random>
+#include <semaphore.h>
+#include <thread>
 using namespace std;
 
 #include "Constant.hpp"
@@ -34,10 +36,10 @@ private:
 public:
     AdminChan();
     void taint();
-    ~AdminChan();
+    void stopOp();
 };
 
-inline AdminChan::AdminChan(): tnt() {
+inline AdminChan::AdminChan() {
     Error error;
     error.className = "AdminChan";
     error.funcName = "Constructor";
@@ -101,11 +103,11 @@ inline AdminChan::AdminChan(): tnt() {
 
 inline void AdminChan::taint() {
     sem_wait(writer);
-    tnt.taintBurst(shm, PACKET_LEN);
-    sem_post(writer);
+    tnt.taint(shm, PACKET_LEN);
+    sem_post(hasWritten);
 }
 
-inline AdminChan::~AdminChan() {
+inline void AdminChan::stopOp() {
     munmap(mmapSpace, CHAN_LEN);
     close(fd);
     shm_unlink(CHAN_NAME);

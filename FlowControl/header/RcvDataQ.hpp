@@ -13,7 +13,7 @@ using namespace std;
 
 class RcvDataQ {
 private:
-    static const len_t QUEUE_LEN = PACKET_LEN*WINDOW_LEN;
+    static const len_t QUEUE_LEN = PACKET_LEN*64;
     byte_t queue[QUEUE_LEN];
     indx_t rear;
     indx_t front;
@@ -27,18 +27,16 @@ private:
     Semaphore stopped;
 public:
     RcvDataQ(Ptr<RcvDataPktQ>& rDPQ);
-    void store(); // run in thread
+    void store();
     void collect(byte_t data[], len_t len);
     void stopOp();
 };
 
 inline RcvDataQ::RcvDataQ(Ptr<RcvDataPktQ>& rDPQ):
-rcvDataPktQ(rDPQ), rear(0), front(0), qFull(QUEUE_LEN), 
+rear(0), front(0), rcvDataPktQ(rDPQ), qFull(QUEUE_LEN), 
 qEmpty(0), stop(false), stopped(0){}
 
 inline void RcvDataQ::collect(byte_t data[], len_t len) {
-    // cout << "Entering RcvDataQ::collect() \n";
-    // cout.flush();
     for(indx_t i = 0; i < len; i++) {
         qEmpty.wait();
         
@@ -47,34 +45,22 @@ inline void RcvDataQ::collect(byte_t data[], len_t len) {
 
         qFull.signal();
     }
-    // cout << "Exiting RcvDataQ::collect() \n";
-    // cout.flush();
 }
 
 inline void RcvDataQ::store() {
-    // cout << "Entering RcvDataQ::store() \n";
-    // cout.flush();
-
     byte_t buffer[PACKET_LEN];
     len_t len;
     Ptr<Pkt> tmpPkt;
 
-    uint64_t count = 0;
-
     while(true) {
-        // cout << "RcvDataQ::store() collecting pkt\n";
-        // cout.flush();
         rcvDataPktQ->collect(tmpPkt);
-        // cout << "RcvDataQ::store() collected pkt\n";
-        // cout.flush();
 
         if(stop == true) {
             break;
         }
 
         tmpPkt->unpackData(buffer, len);
-        // cout << "RcvDataQ::store() inserting data\n";
-        // cout.flush();
+        
         for(indx_t i = 0; i < len; i++) {
             qFull.wait();
             queue[front] = buffer[i];
@@ -85,23 +71,16 @@ inline void RcvDataQ::store() {
                 break;
             }
         }
-
-        count++;
-        // this_thread::sleep_for(chrono::milliseconds(11)*2);
-        if(count == QUEUE_LEN/2) {
-            this_thread::yield();
-        }
-        // cout << "RcvDataQ::store() inserted data\n";
-        // cout.flush();
+        
+        this_thread::yield();
     }
     
     stopped.signal();
-    // cout << "Exiting RcvDataQ::store() \n";
-    // cout.flush();
 }
 
 inline void RcvDataQ::stopOp() {
     stop = true;
     qFull.signal();
     stopped.wait();
+    this_thread::yield();
 }

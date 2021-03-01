@@ -1,8 +1,7 @@
 #!/bin/bash
 
 ./compile.sh
-for i in {1..3}
+for i in {1..5}
 do
-    sleep 10
     ./testScript.sh
 done
